@@ -8,9 +8,12 @@ function analyze_strategy_volume_spike(array $klines, array $params): array {
         'signal' => 'neutral',
         'details' => 'Not enough data or volume SMA not calculated.',
         'confidence_factor' => 0.0,
-        'pattern_confirmed' => false,
-        'volume_support' => false, 
-        'divergence' => 'none',
+        'extra_factors' => [
+            'divergence' => 'none',
+            'volume_support' => false, 
+            'pattern_confirmed' => false,
+            'liquidity_zone' => 'none',
+        ]
     ];
 
     $sma_period = (int)($params['volume_sma_period'] ?? 20);
@@ -59,7 +62,7 @@ function analyze_strategy_volume_spike(array $klines, array $params): array {
             
             $spike_details_text = "Volume spike on candle #{$i} from end. Vol: " . number_format($current_vol) . " ({$actual_factor}x avg " . number_format($avg_vol) . "). Candle: {$candle_direction_char}.";
             
-            $result['volume_support'] = true; 
+            $result['extra_factors']['volume_support'] = true; 
             $result['triggered'] = true;
             $result['confidence_factor'] = $base_confidence;
 
@@ -75,8 +78,9 @@ function analyze_strategy_volume_spike(array $klines, array $params): array {
     if ($spike_detected) {
         $result['details'] = $spike_details_text;
     } else {
-        $last_avg_vol_val = null; $k = count($average_volumes)-1; while($k>=0 && ($average_volumes[$k]===null || !is_numeric($average_volumes[$k]))) $k--;
+        $last_avg_vol_val = null; $k = count($average_volumes)-1; while($k>=0 && (!isset($average_volumes[$k]) || !is_numeric($average_volumes[$k]))) $k--; // Fixed check for isset
         if($k>=0 && isset($average_volumes[$k])) $last_avg_vol_val=(float)$average_volumes[$k];
+        
         $last_vol_val = (count($volumes)>0 && is_numeric(end($volumes))) ? (float)end($volumes) : null;
 
         $result['details'] = "No significant volume spikes (>{$spike_factor_config}x avg) on last {$candles_to_check_config} candle(s). Last Vol: " . ($last_vol_val!==null ? number_format($last_vol_val) : 'N/A') . ", Last AvgVol (SMA{$sma_period}): " . ($last_avg_vol_val!==null ? number_format($last_avg_vol_val) : 'N/A') . ".";

@@ -14,13 +14,19 @@ if (file_exists($market_overview_file_path)) {
             $latest_ts = 0;
             foreach ($decoded_overview as $symbol_data_item) {
                 if (isset($symbol_data_item['timestamp_utc'])) {
-                    $current_ts_val = strtotime($symbol_data_item['timestamp_utc']);
-                    if ($current_ts_val > $latest_ts) {
+                    // Sanitize timestamp_utc before strtotime if necessary
+                    $ts_val_str = str_replace(' ', 'T', $symbol_data_item['timestamp_utc']);
+                    if (substr($ts_val_str, -1) !== 'Z') { // Ensure it's UTC for correct parsing
+                        $ts_val_str .= 'Z';
+                    }
+                    $current_ts_val = strtotime($ts_val_str);
+                    if ($current_ts_val !== false && $current_ts_val > $latest_ts) {
                         $latest_ts = $current_ts_val;
                     }
                 }
             }
             if ($latest_ts > 0) {
+                // Display in local timezone based on server settings, or could force UTC
                 $last_overview_timestamp_str = date('Y-m-d H:i:s T', $latest_ts);
             }
         }
@@ -38,7 +44,7 @@ if (file_exists($market_overview_file_path)) {
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
         .spinner { border: 4px solid rgba(0, 0, 0, .1); border-left-color: #4f46e5; border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
-        .details-cell { max-width: 350px; white-space: normal; word-break: break-word; font-size: 0.75rem; line-height: 1.3; }
+        .details-cell { max-width: 400px; /* Increased slightly */ white-space: normal; word-break: break-word; font-size: 0.75rem; line-height: 1.3; }
         .summary-cell { max-width: 450px; white-space: normal; word-break: break-word; font-size: 0.8rem; }
         .signal-BUY { color: #10B981; font-weight: 600; }
         .signal-SELL { color: #EF4444; font-weight: 600; }
@@ -50,6 +56,9 @@ if (file_exists($market_overview_file_path)) {
         #statusMessagesContainer .status-loading { background-color: #e0f2fe; color: #075985; border: 1px solid #7dd3fc;}
         .confidence-bar-container { width: 60px; height: 10px; background-color: #e5e7eb; border-radius: 3px; overflow: hidden; display: inline-block; margin-left: 5px; vertical-align: middle;}
         .confidence-bar { height: 100%; transition: width 0.3s ease-in-out; }
+        .list-disc li { margin-bottom: 2px; } /* slightly reduce margin for tf details */
+        .text-indigo-600 { color: #4f46e5; }
+        .text-indigo-700 { color: #4338ca; }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen p-2 md:p-6">
@@ -57,7 +66,7 @@ if (file_exists($market_overview_file_path)) {
     <header class="mb-6 text-center">
         <h1 class="text-2xl md:text-3xl font-bold text-gray-800">Market Analyzer</h1>
         <p class="text-sm text-gray-600">Анализатор рыночных трендов</p>
-        <p id="lastUpdatedTimestamp" class="text-xs text-gray-500 mt-1">Обзор от: <?php echo $last_overview_timestamp_str; ?></p>
+        <p id="lastUpdatedTimestamp" class="text-xs text-gray-500 mt-1">Обзор от: <?php echo htmlspecialchars($last_overview_timestamp_str); ?></p>
     </header>
     <main>
         <div class="flex flex-col sm:flex-row justify-between items-center mb-6 space-y-4 sm:space-y-0 sm:space-x-4">
@@ -74,7 +83,7 @@ if (file_exists($market_overview_file_path)) {
         </div>
 
         <div id="statusMessagesContainer" class="mb-4 max-h-48 overflow-y-auto border border-gray-300 p-2 rounded-md bg-gray-50">
-            <div class="status-message status-info">Ожидание команд или загрузка данных...</div>
+            <!-- Status messages will appear here -->
         </div>
 
         <div class="flex justify-between items-center mb-3 mt-6">

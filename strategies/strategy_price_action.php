@@ -8,9 +8,12 @@ function analyze_strategy_price_action(array $klines, array $params): array {
         'signal' => 'neutral',
         'details' => 'Not enough data for PA.',
         'confidence_factor' => 0.0,
-        'pattern_confirmed' => false, 
-        'volume_support' => false,    
-        'divergence' => 'none',
+        'extra_factors' => [
+            'divergence' => 'none',
+            'volume_support' => false,    
+            'pattern_confirmed' => false, 
+            'liquidity_zone' => 'none',
+        ]
     ];
     $base_confidence = (float)($params['base_confidence_from_config'] ?? 0.25);
 
@@ -49,7 +52,7 @@ function analyze_strategy_price_action(array $klines, array $params): array {
             $result['triggered'] = true; $result['signal'] = 'buy';
             $result['details'] = "Bullish Engulfing pattern detected.";
             $result['confidence_factor'] = $base_confidence;
-            $result['pattern_confirmed'] = true;
+            $result['extra_factors']['pattern_confirmed'] = true;
             return $result; 
         }
         if ($pc_close > $pc_open && $lc_close < $lc_open && 
@@ -57,7 +60,7 @@ function analyze_strategy_price_action(array $klines, array $params): array {
             $result['triggered'] = true; $result['signal'] = 'sell';
             $result['details'] = "Bearish Engulfing pattern detected.";
             $result['confidence_factor'] = $base_confidence;
-            $result['pattern_confirmed'] = true;
+            $result['extra_factors']['pattern_confirmed'] = true;
             return $result; 
         }
     }
@@ -67,7 +70,7 @@ function analyze_strategy_price_action(array $klines, array $params): array {
             $result['triggered'] = true; $result['signal'] = 'buy'; 
             $result['details'] = "Hammer pattern detected (potential bullish).";
             $result['confidence_factor'] = $base_confidence * 0.8; 
-            $result['pattern_confirmed'] = true;
+            $result['extra_factors']['pattern_confirmed'] = true;
             return $result;
         }
     }
@@ -77,7 +80,7 @@ function analyze_strategy_price_action(array $klines, array $params): array {
         $result['signal'] = 'neutral';
         $result['details'] = "Doji pattern detected (indecision).";
         $result['confidence_factor'] = $base_confidence * 0.3; 
-        $result['pattern_confirmed'] = true;
+        $result['extra_factors']['pattern_confirmed'] = true;
         return $result;
     }
 

@@ -8,9 +8,12 @@ function analyze_strategy_sup_res_bounce(array $klines, array $params): array {
         'signal' => 'neutral',
         'details' => 'Not enough data or no recent S/R levels identified.',
         'confidence_factor' => 0.0,
-        'pattern_confirmed' => false, 
-        'volume_support' => false,
-        'divergence' => 'none',
+        'extra_factors' => [
+            'divergence' => 'none', 
+            'volume_support' => false,
+            'pattern_confirmed' => false, 
+            'liquidity_zone' => 'none',
+        ]
     ];
 
     $pivot_lookback = (int)($params['sup_res_pivot_lookback'] ?? 5);
@@ -65,7 +68,7 @@ function analyze_strategy_sup_res_bounce(array $klines, array $params): array {
                     $resistance_price_f, date('Y-m-d H:i', $ts/1000), $lc_high, $lc_close
                 );
                 $result['confidence_factor'] = $base_confidence;
-                $result['pattern_confirmed'] = true;
+                $result['extra_factors']['pattern_confirmed'] = true;
                 return $result; 
              }
         }
@@ -85,7 +88,7 @@ function analyze_strategy_sup_res_bounce(array $klines, array $params): array {
                     $support_price_f, date('Y-m-d H:i', $ts/1000), $lc_low, $lc_close
                 );
                 $result['confidence_factor'] = $base_confidence;
-                $result['pattern_confirmed'] = true;
+                $result['extra_factors']['pattern_confirmed'] = true;
                 return $result; 
             }
         }

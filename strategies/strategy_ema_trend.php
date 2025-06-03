@@ -8,9 +8,12 @@ function analyze_strategy_ema_trend(array $klines, array $params): array {
         'signal' => 'neutral',
         'details' => 'Not enough data or EMAs not calculated.',
         'confidence_factor' => 0.0,
-        'pattern_confirmed' => false,
-        'volume_support' => false,
-        'divergence' => 'none',
+        'extra_factors' => [
+            'divergence' => 'none', 
+            'volume_support' => false,
+            'pattern_confirmed' => false, 
+            'liquidity_zone' => 'none',
+        ]
     ];
 
     $ema_short_period = (int)($params['ema_short'] ?? 12);

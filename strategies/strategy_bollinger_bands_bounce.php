@@ -8,9 +8,12 @@ function analyze_strategy_bollinger_bands_bounce(array $klines, array $params): 
         'signal' => 'neutral',
         'details' => 'Not enough data or Bollinger Bands not calculated.',
         'confidence_factor' => 0.0,
-        'pattern_confirmed' => false,
-        'volume_support' => false,
-        'divergence' => 'none',
+        'extra_factors' => [
+            'divergence' => 'none',
+            'volume_support' => false,
+            'pattern_confirmed' => false,
+            'liquidity_zone' => 'none',
+        ]
     ];
 
     $bb_period = (int)($params['bollinger_period'] ?? 20);
@@ -63,7 +66,7 @@ function analyze_strategy_bollinger_bands_bounce(array $klines, array $params): 
             $lower_band_val, $lc_low, $lc_close
         );
         $result['confidence_factor'] = $base_confidence;
-        $result['pattern_confirmed'] = true;
+        $result['extra_factors']['pattern_confirmed'] = true;
     } 
     elseif ($lc_high >= $upper_band_val && $lc_close < $upper_band_val) {
         $result['triggered'] = true;
@@ -73,7 +76,7 @@ function analyze_strategy_bollinger_bands_bounce(array $klines, array $params): 
             $upper_band_val, $lc_high, $lc_close
         );
         $result['confidence_factor'] = $base_confidence;
-        $result['pattern_confirmed'] = true;
+        $result['extra_factors']['pattern_confirmed'] = true;
     } else {
         $result['details'] = sprintf(
             "No clear Bollinger Bands bounce. Price C:%.4f. Bands L:%.4f, M:%.4f, U:%.4f.",

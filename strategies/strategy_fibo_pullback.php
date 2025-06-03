@@ -8,9 +8,12 @@ function analyze_strategy_fibo_pullback(array $klines, array $params): array {
         'signal' => 'neutral',
         'details' => 'Not enough data or no valid impulse for Fibo.',
         'confidence_factor' => 0.0,
-        'pattern_confirmed' => false, 
-        'volume_support' => false,
-        'divergence' => 'none',
+        'extra_factors' => [
+            'divergence' => 'none', 
+            'volume_support' => false,
+            'pattern_confirmed' => false, 
+            'liquidity_zone' => 'none',
+        ]
     ];
 
     $pivot_lookback = (int)($params['fibo_pivot_lookback'] ?? 3);
@@ -54,8 +57,6 @@ function analyze_strategy_fibo_pullback(array $klines, array $params): array {
     if ($last_high_ts > $last_low_ts) { 
         $potential_start_lows_ts = array_filter(array_keys($low_pivots), fn($ts_val) => $ts_val < $last_high_ts);
         if (empty($potential_start_lows_ts)) { $result['details'] = "No preceding low pivot for the last high pivot."; return $result;}
-        // Corrected logic: find the LOWEST pivot price (strongest start of impulse) that occurred *before* last_high_ts, but among RECENT lows.
-        // Simpler: Find the most recent low pivot *before* the last high pivot.
         $impulse_start_ts = max($potential_start_lows_ts); 
         
         if(!isset($low_pivots[$impulse_start_ts], $high_pivots[$last_high_ts])) { $result['details'] = "Data error for uptrend impulse pivots."; return $result;}
@@ -124,7 +125,7 @@ function analyze_strategy_fibo_pullback(array $klines, array $params): array {
                 $level_key, $fibo_price, $start_price, date('Y-m-d H:i',$impulse_start_ts/1000), $end_price, date('Y-m-d H:i',$impulse_end_ts/1000)
             );
             $result['confidence_factor'] = $base_confidence + (($level_percent == 50.0 || $level_percent == 61.8) ? 0.05 : 0.0);
-            $result['pattern_confirmed'] = true;
+            $result['extra_factors']['pattern_confirmed'] = true;
             break; 
         }
     }

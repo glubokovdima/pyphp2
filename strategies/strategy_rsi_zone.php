@@ -8,9 +8,12 @@ function analyze_strategy_rsi_zone(array $klines, array $params): array {
         'signal' => 'neutral',
         'details' => 'Not enough data or RSI not calculated.',
         'confidence_factor' => 0.0,
-        'pattern_confirmed' => false,
-        'volume_support' => false,
-        'divergence' => 'none',
+        'extra_factors' => [
+            'divergence' => 'none',
+            'volume_support' => false,
+            'pattern_confirmed' => false,
+            'liquidity_zone' => 'none',
+        ]
     ];
 
     $rsi_period = (int)($params['rsi_period'] ?? 14);

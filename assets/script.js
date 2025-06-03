@@ -68,7 +68,7 @@ $(document).ready(function () {
         signal = signal.toUpperCase();
         if (signal === 'BUY') return 'signal-BUY';
         if (signal === 'SELL') return 'signal-SELL';
-        return 'signal-NEUTRAL';
+        return 'signal-NEUTRAL'; // Covers NEUTRAL, ERROR, etc.
     }
 
     function getConfidenceBar(signal, confidence) {
@@ -76,7 +76,7 @@ $(document).ready(function () {
         let barClass = '';
         if (signal && signal.toUpperCase() === 'BUY') barClass = 'bg-green-500';
         else if (signal && signal.toUpperCase() === 'SELL') barClass = 'bg-red-500';
-        else barClass = 'bg-gray-400';
+        else barClass = 'bg-gray-400'; // For NEUTRAL or if confidence is shown for ERROR
 
         return `<div class="confidence-bar-container">
                     <div class="confidence-bar ${barClass}" style="width: ${confidencePercentage}%;"></div>
@@ -94,14 +94,14 @@ $(document).ready(function () {
                     const data = marketOverviewData[symbol];
 
                     if (data.timestamp_utc) {
-                        const currentEntryTs = new Date(data.timestamp_utc.replace(' ', 'T') + 'Z').getTime(); // Assuming UTC
+                        const currentEntryTs = new Date(data.timestamp_utc.replace(' ', 'T') + 'Z').getTime();
                         if (currentEntryTs > latestTimestamp) {
                             latestTimestamp = currentEntryTs;
                         }
                     }
 
                     const overallConfidence = parseFloat(data.confidence) || 0;
-                    if (overallConfidence < filterConfidence) {
+                    if (overallConfidence < filterConfidence && data.signal !== 'ERROR') { // Always show errors
                         continue;
                     }
                     dataDisplayed = true;
@@ -111,20 +111,33 @@ $(document).ready(function () {
                         for (const tf in data.debug_strategy_results_by_tf) {
                             const tfData = data.debug_strategy_results_by_tf[tf];
                             let tfSignalClass = getSignalClass(tfData.trend_signal);
-                            let tfConfDisplay = tfData.confidence !== undefined ? (parseFloat(tfData.confidence) * 100).toFixed(0) + '%' : 'N/A';
-
-                            let detailsCombined = [];
-                            if(tfData.details && Array.isArray(tfData.details)){
-                                detailsCombined = tfData.details.map(d => d.replace(/:\s*/, ': <span class="text-gray-600">') + '</span>');
-                            } else if (tfData.error) {
-                                detailsCombined.push(`<strong>Ошибка:</strong> ${tfData.error}`);
+                            // TF confidence is now -1 to 1, convert to 0-1 for display based on signal direction
+                            let tfConfDisplayVal = 'N/A';
+                            if (tfData.confidence !== undefined && tfData.trend_signal !== 'NEUTRAL' && tfData.trend_signal !== 'ERROR') {
+                                tfConfDisplayVal = (Math.abs(parseFloat(tfData.confidence)) * 100).toFixed(0) + '%';
+                            } else if (tfData.trend_signal === 'NEUTRAL' && tfData.confidence !== undefined){
+                                // For neutral TF, confidence might represent 'strength of neutrality' (0-1 scale from backend)
+                                tfConfDisplayVal = (parseFloat(tfData.confidence) * 100).toFixed(0) + '%';
                             }
 
-                            if (detailsCombined.length === 0) detailsCombined.push('Нет деталей');
 
-                            tfDetailsHtml += `<li class="mb-1"><strong class="${tfSignalClass}">${tf} (${tfData.trend_signal || 'N/A'}, ${tfConfDisplay})</strong>: ${detailsCombined.join('; ')}</li>`;
+                            let detailsCombined = [];
+                            if (tfData.details && Array.isArray(tfData.details) && tfData.details.length > 0) {
+                                detailsCombined = tfData.details.map(d => d.replace(/:\s*/, ': <span class="text-gray-600">') + '</span>');
+                            } else if (tfData.error) {
+                                detailsCombined.push(`<strong>Ошибка ТФ:</strong> ${tfData.error}`);
+                            }
+
+                            if (detailsCombined.length === 0 && tfData.trend_signal !== 'ERROR') detailsCombined.push('Нет деталей по стратегиям.');
+
+                            let confluenceText = '';
+                            if (tfData.confluence_matches && tfData.confluence_matches > 0) {
+                                confluenceText = ` <span class="text-indigo-600 font-semibold">(Confluence: ${tfData.confluence_matches})</span>`;
+                            }
+
+                            tfDetailsHtml += `<li class="mb-1"><strong class="${tfSignalClass}">${tf} (${tfData.trend_signal || 'N/A'}, ${tfConfDisplayVal})${confluenceText}</strong>: ${detailsCombined.join('; ')}</li>`;
                         }
-                    } else if (data.error) { // Top level error for symbol
+                    } else if (data.error) {
                         tfDetailsHtml += `<li><strong>Общая ошибка по символу:</strong> ${data.error}</li>`;
                     } else {
                         tfDetailsHtml += `<li>Нет данных по таймфреймам.</li>`;
@@ -132,14 +145,21 @@ $(document).ready(function () {
                     tfDetailsHtml += '</ul>';
 
                     const confidenceVal = data.confidence !== undefined ? parseFloat(data.confidence).toFixed(2) : 'N/A';
+                    // Confidence bar for overall signal (0-1 scale)
                     const confidenceBarHtml = data.confidence !== undefined ? getConfidenceBar(data.signal, data.confidence) : '';
+
+                    let summaryText = data.summary || 'Нет summary';
+                    if (data.extra_factors && data.extra_factors.confluence_count && data.extra_factors.confluence_count > 0) {
+                        summaryText += ` <span class="text-sm font-medium text-indigo-700">[Общий Confluence: ${data.extra_factors.confluence_count} ТФ]</span>`;
+                    }
+
 
                     const row = `
                         <tr data-symbol="${symbol}">
                             <td class="px-3 py-2 whitespace-nowrap">${data.symbol || symbol}</td>
                             <td class="px-3 py-2 whitespace-nowrap ${getSignalClass(data.signal)}">${data.signal || 'N/A'}</td>
                             <td class="px-3 py-2 whitespace-nowrap">${confidenceVal}${confidenceBarHtml}</td>
-                            <td class="px-3 py-2 summary-cell">${data.summary || 'Нет summary'}</td>
+                            <td class="px-3 py-2 summary-cell">${summaryText}</td>
                             <td class="px-3 py-2 details-cell">${tfDetailsHtml}</td>
                         </tr>
                     `;
@@ -158,6 +178,8 @@ $(document).ready(function () {
 
         if (latestTimestamp > 0) {
             $lastUpdatedTimestamp.text('Обзор от: ' + new Date(latestTimestamp).toLocaleString());
+        } else {
+            $lastUpdatedTimestamp.text('Обзор от: N/A');
         }
 
 
@@ -180,15 +202,15 @@ $(document).ready(function () {
 
     async function runFullAnalysis() {
         setButtonState('manualAnalysis', true);
-        setButtonState('refreshOverview', true); // Also disable refresh
+        setButtonState('refreshOverview', true);
         updateStatus('Запущен полный анализ рынка вручную...', 'loading', false);
 
         try {
             const response = await $.ajax({
                 url: window.apiEndpoints.runAnalysis,
-                method: 'POST', // Or GET, depending on how run_analysis.php expects to be triggered
+                method: 'POST',
                 dataType: 'json',
-                timeout: 300000 // 5 minutes timeout for full analysis
+                timeout: 300000 // 5 minutes
             });
 
             if (response.success && response.market_overview) {
@@ -196,6 +218,9 @@ $(document).ready(function () {
                 displayOverview(currentMarketOverviewData, parseFloat($confidenceFilter.val()));
                 updateStatus('Полный анализ рынка завершен. Обзор обновлен.', 'success', true);
                 if(response.message) updateStatus(response.message, 'info', true);
+                if(response.logs && Array.isArray(response.logs)) {
+                    response.logs.forEach(logMsg => updateStatus(logMsg, 'info', true));
+                }
             } else {
                 throw new Error(response.message || 'Ошибка выполнения анализа на сервере.');
             }
@@ -219,7 +244,7 @@ $(document).ready(function () {
 
     async function refreshMarketOverview() {
         setButtonState('refreshOverview', true);
-        setButtonState('manualAnalysis', true); // Also disable manual run
+        setButtonState('manualAnalysis', true);
         updateStatus('Загрузка последнего обзора рынка...', 'loading', false);
 
         try {
@@ -227,7 +252,7 @@ $(document).ready(function () {
                 url: window.apiEndpoints.getLatest,
                 method: 'GET',
                 dataType: 'json',
-                data: { format: 'json', type: 'all' }, // Request all data
+                data: { format: 'json', type: 'all' },
                 timeout: 30000
             });
 
@@ -259,7 +284,6 @@ $(document).ready(function () {
     $runManualAnalysisButton.click(runFullAnalysis);
     $refreshOverviewButton.click(refreshMarketOverview);
 
-    // Initial display
     if (window.initialMarketOverview) {
         displayOverview(window.initialMarketOverview, parseFloat($confidenceFilter.val()));
         updateStatus('Начальный обзор рынка загружен.', 'info', false);

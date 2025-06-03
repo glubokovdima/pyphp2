@@ -8,9 +8,12 @@ function analyze_strategy_supertrend(array $klines, array $params): array {
         'signal' => 'neutral',
         'details' => 'Not enough data or Supertrend not calculated.',
         'confidence_factor' => 0.0,
-        'pattern_confirmed' => false, 
-        'volume_support' => false,
-        'divergence' => 'none',
+        'extra_factors' => [
+            'divergence' => 'none', 
+            'volume_support' => false,
+            'pattern_confirmed' => false, 
+            'liquidity_zone' => 'none',
+        ]
     ];
 
     $atr_period = (int)($params['atr_period'] ?? $params['supertrend_period'] ?? 10); 
@@ -61,13 +64,13 @@ function analyze_strategy_supertrend(array $klines, array $params): array {
         $result['signal'] = 'buy';
         $result['details'] = "Supertrend (P:{$atr_period}, M:{$multiplier}) indicates UPTREND. ST Line: {$st_val_f}. Last Close: {$last_close}.";
         $result['confidence_factor'] = $base_confidence;
-        $result['pattern_confirmed'] = true; 
+        $result['extra_factors']['pattern_confirmed'] = true; 
     } elseif ($last_direction == -1) { 
         $result['triggered'] = true;
         $result['signal'] = 'sell';
         $result['details'] = "Supertrend (P:{$atr_period}, M:{$multiplier}) indicates DOWNTREND. ST Line: {$st_val_f}. Last Close: {$last_close}.";
         $result['confidence_factor'] = $base_confidence;
-        $result['pattern_confirmed'] = true;
+        $result['extra_factors']['pattern_confirmed'] = true;
     } else { 
         $result['details'] = "Supertrend (P:{$atr_period}, M:{$multiplier}) is neutral or undecided. ST Line: {$st_val_f}.";
     }
